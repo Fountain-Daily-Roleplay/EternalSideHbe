@@ -21,7 +21,7 @@
     margin: 0; padding: 0;
     overflow: hidden;
     background: transparent;
-    pointer-events: none;
+    pointer-events: auto;
     cursor: default;
     -webkit-user-select: none; -moz-user-select: none;
     -ms-user-select: none; user-select: none;
@@ -34,7 +34,7 @@
   }
 
   /* ---------- posisi HUD ---------- */
-  .hud { position: fixed; z-index: 10; }
+  .hud { position: fixed; z-index: 10; pointer-events: auto; }
   .hud.pos-bl { left: calc(var(--u) * 24px);  bottom: calc(var(--u) * 22px); }
   .hud.pos-br { right: calc(var(--u) * 24px); bottom: calc(var(--u) * 22px); }
   .hud.pos-tl { left: calc(var(--u) * 24px);  top: calc(var(--u) * 22px); }
@@ -432,6 +432,18 @@
     .hud .meta { left: calc(var(--u) * 32px); right: calc(var(--u) * 4px); bottom: calc(var(--u) * 3px); }
     .hud .meta b { font-size: calc(var(--u) * 7px); line-height: calc(var(--u) * 8px); letter-spacing: calc(var(--u) * .35px); }
     .hud .value { top: calc(var(--u) * 3px); right: calc(var(--u) * 5px); font-size: calc(var(--u) * 13px); max-width: calc(var(--u) * 52px); height: calc(var(--u) * 16px); line-height: calc(var(--u) * 16px); }
+  }  /* Final compact scale for CEF. The HUD remains clickable after scaling. */
+  .hud.pos-bc {
+    -webkit-transform: translateX(-50%) scale(.62);
+    transform: translateX(-50%) scale(.62);
+    -webkit-transform-origin: center bottom;
+    transform-origin: center bottom;
+  }
+  @media (max-width: 600px) {
+    .hud.pos-bc {
+      -webkit-transform: translateX(-50%) scale(.52);
+      transform: translateX(-50%) scale(.52);
+    }
   }</style>
 </head>
 <body>
