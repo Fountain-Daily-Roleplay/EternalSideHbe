@@ -1,0 +1,738 @@
+﻿<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Status HUD â€” CEF</title>
+<!--
+  HUD STATUS KARAKTER â€” CEF (GTA SA-MP)
+  Perbaikan tata letak:
+    â€¢ margin antar .stat (bukan flex `gap`) â†’ kompatibel CEF lama
+    â€¢ .stat & .dial diberi tinggi eksplisit agar tidak saling timpa
+    â€¢ zona badge / value / label dipisah, label tidak mungkin menabrak value
+    â€¢ SVG air memakai viewBox 108x50 (mengisi penuh kotak) + preserveAspectRatio="none"
+    â€¢ label & value diberi overflow:hidden + ellipsis sebagai pengaman
+-->
+<style>
+  :root { --u: 1; }
+
+  html, body {
+    width: 100%; height: 100%;
+    margin: 0; padding: 0;
+    overflow: hidden;
+    background: transparent;
+    pointer-events: none;
+    cursor: default;
+    -webkit-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    font-family: "Segoe UI", "Trebuchet MS", Tahoma, sans-serif;
+  }
+
+  body.demo {
+    background: -webkit-radial-gradient(120% 120%, #1b2c4e 0%, #0b1120 48%, #070b14 100%);
+    background: radial-gradient(120% 120% at 50% 0%, #1b2c4e 0%, #0b1120 48%, #070b14 100%);
+  }
+
+  /* ---------- posisi HUD ---------- */
+  .hud { position: fixed; z-index: 10; }
+  .hud.pos-bl { left: calc(var(--u) * 24px);  bottom: calc(var(--u) * 22px); }
+  .hud.pos-br { right: calc(var(--u) * 24px); bottom: calc(var(--u) * 22px); }
+  .hud.pos-tl { left: calc(var(--u) * 24px);  top: calc(var(--u) * 22px); }
+  .hud.pos-tr { right: calc(var(--u) * 24px); top: calc(var(--u) * 22px); }
+  .hud.pos-br .row,
+  .hud.pos-tr .row {
+    -webkit-justify-content: flex-end;
+    justify-content: flex-end;
+  }
+  .hud.is-hidden { display: none; }
+
+  /* ---------- baris indikator ---------- */
+  .row {
+    display: -webkit-box;
+    display: -webkit-flex;
+    display: flex;
+    -webkit-flex-wrap: wrap;
+    flex-wrap: wrap;
+    -webkit-justify-content: flex-start;
+    justify-content: flex-start;
+    max-width: calc(var(--u) * 560px);
+  }
+  .hud.narrow .row { max-width: calc(var(--u) * 290px); }
+
+  .stat {
+    position: relative;
+    width: calc(var(--u) * 118px);
+    margin: calc(var(--u) * 8px) calc(var(--u) * 7px);
+    text-align: center;
+    -webkit-box-sizing: border-box;
+    box-sizing: border-box;
+  }
+
+  /* ---------- dasar lingkaran (dipakai bila pos bukan -bc) ---------- */
+  .dial {
+    position: relative;
+    width: calc(var(--u) * 118px);
+    height: calc(var(--u) * 118px);
+    border-radius: 50%;
+    -webkit-box-sizing: border-box;
+    box-sizing: border-box;
+    background:
+      -webkit-linear-gradient(top, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0.02) 62%),
+      rgba(8,13,24,0.55);
+    background:
+      linear-gradient(to bottom, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0.02) 62%),
+      rgba(8,13,24,0.55);
+    border: calc(var(--u) * 1px) solid rgba(255,255,255,0.20);
+    box-shadow:
+      0 calc(var(--u) * 16px) calc(var(--u) * 30px) calc(var(--u) * -16px) rgba(0,0,0,0.85),
+      inset 0 calc(var(--u) * 1px) 0 rgba(255,255,255,0.30),
+      0 0 calc(var(--u) * 22px) calc(var(--u) * -12px) var(--c);
+  }
+  .dial .ring {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    display: block;
+  }
+  .dial .shine {
+    position: absolute;
+    top: 6%; left: 12%;
+    width: 52%; height: 34%;
+    border-radius: 50%;
+    background: -webkit-radial-gradient(50% 50%, rgba(255,255,255,0.30), rgba(255,255,255,0) 70%);
+    background: radial-gradient(50% 50% at 50% 50%, rgba(255,255,255,0.30), rgba(255,255,255,0) 70%);
+    z-index: 1;
+  }
+
+  /* peringatan kritis (gaya lingkaran) */
+  .halo {
+    position: absolute;
+    top: calc(var(--u) * -7px);
+    left: calc(var(--u) * -7px);
+    right: calc(var(--u) * -7px);
+    bottom: calc(var(--u) * -7px);
+    border-radius: 50%;
+    border: calc(var(--u) * 1.5px) solid rgba(255,110,110,0.55);
+    box-shadow: 0 0 calc(var(--u) * 26px) calc(var(--u) * 2px) rgba(255,70,70,0.55);
+    opacity: 0;
+    pointer-events: none;
+    z-index: 0;
+  }
+  .stat.is-critical .halo {
+    -webkit-animation: critBlink 1.15s ease-in-out infinite;
+    animation: critBlink 1.15s ease-in-out infinite;
+  }
+  .stat.is-critical .dial {
+    border-color: rgba(255,90,90,0.70);
+    -webkit-animation: critPulse 1.6s ease-in-out infinite;
+    animation: critPulse 1.6s ease-in-out infinite;
+  }
+  .stat.is-critical .value {
+    -webkit-animation: critText 1.15s ease-in-out infinite;
+    animation: critText 1.15s ease-in-out infinite;
+  }
+
+  @-webkit-keyframes critBlink { 0%,100%{opacity:.10} 50%{opacity:.85} }
+  @keyframes critBlink { 0%,100%{opacity:.10} 50%{opacity:.85} }
+  @-webkit-keyframes critPulse { 0%,100%{-webkit-transform:scale(1)} 50%{-webkit-transform:scale(1.05)} }
+  @keyframes critPulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.05)} }
+  @-webkit-keyframes critText {
+    0%,100%{color:#fff;text-shadow:0 .08em .4em rgba(0,0,0,.8)}
+    50%{color:#ffd2d2;text-shadow:0 0 .7em rgba(255,77,77,.95)}
+  }
+  @keyframes critText {
+    0%,100%{color:#fff;text-shadow:0 .08em .4em rgba(0,0,0,.8)}
+    50%{color:#ffd2d2;text-shadow:0 0 .7em rgba(255,77,77,.95)}
+  }
+
+  /* mode "tenang" & "statis" */
+  .hud.mode-tenang .stat.is-critical .halo {
+    border-color: rgba(255,110,110,0.45);
+    -webkit-animation: critBreath 2.8s ease-in-out infinite;
+    animation: critBreath 2.8s ease-in-out infinite;
+  }
+  .hud.mode-tenang .stat.is-critical .dial {
+    border-color: rgba(255,90,90,0.52);
+    -webkit-animation: critBreathe 2.8s ease-in-out infinite;
+    animation: critBreathe 2.8s ease-in-out infinite;
+  }
+  .hud.mode-tenang .stat.is-critical .value {
+    -webkit-animation: none; animation: none;
+    color: #ffeaea;
+    text-shadow: 0 calc(var(--u)*2px) calc(var(--u)*8px) rgba(0,0,0,.80),
+                 0 0 calc(var(--u)*14px) rgba(255,96,96,.55);
+  }
+  .hud.mode-statis .stat.is-critical .halo {
+    -webkit-animation: none; animation: none;
+    opacity: .50; border-color: rgba(255,110,110,.50);
+  }
+  .hud.mode-statis .stat.is-critical .dial {
+    -webkit-animation: none; animation: none;
+    border-color: rgba(255,90,90,.58);
+  }
+  .hud.mode-statis .stat.is-critical .value {
+    -webkit-animation: none; animation: none;
+    color: #ffdada;
+    text-shadow: 0 calc(var(--u)*2px) calc(var(--u)*8px) rgba(0,0,0,.80),
+                 0 0 calc(var(--u)*12px) rgba(255,90,90,.45);
+  }
+
+  @-webkit-keyframes critBreath { 0%,100%{opacity:.34} 50%{opacity:.62} }
+  @keyframes critBreath { 0%,100%{opacity:.34} 50%{opacity:.62} }
+  @-webkit-keyframes critBreathe { 0%,100%{-webkit-transform:scale(1)} 50%{-webkit-transform:scale(1.015)} }
+  @keyframes critBreathe { 0%,100%{transform:scale(1)} 50%{transform:scale(1.015)} }
+
+  /* ---------- angka persentase (dasar lingkaran) ---------- */
+  .value {
+    position: absolute;
+    top: 50%; left: 0; right: 0;
+    margin-top: calc(var(--u) * -14px);
+    height: calc(var(--u) * 28px);
+    line-height: calc(var(--u) * 28px);
+    font-family: "Bahnschrift SemiBold", "Segoe UI", "Trebuchet MS", sans-serif;
+    font-size: calc(var(--u) * 25px);
+    font-weight: bold;
+    color: #fff;
+    letter-spacing: calc(var(--u) * -0.8px);
+    text-shadow: 0 calc(var(--u)*2px) calc(var(--u)*8px) rgba(0,0,0,.80),
+                 0 0 calc(var(--u)*14px) rgba(255,255,255,.18);
+    z-index: 2;
+  }
+  .value small { font-size: 0.44em; font-weight: bold; opacity: .72; margin-left: calc(var(--u)*1px); }
+
+  .badge {
+    position: absolute;
+    top: calc(var(--u) * -6px);
+    left: 50%;
+    width: calc(var(--u) * 40px);
+    height: calc(var(--u) * 40px);
+    margin-left: calc(var(--u) * -20px);
+    border-radius: 50%;
+    -webkit-box-sizing: border-box;
+    box-sizing: border-box;
+    background: rgba(6,11,20,0.82);
+    border: calc(var(--u) * 1px) solid var(--c-edge);
+    box-shadow: 0 0 calc(var(--u)*16px) calc(var(--u)*-4px) var(--c),
+                inset 0 calc(var(--u)*1px) 0 rgba(255,255,255,.22);
+    z-index: 3;
+  }
+  .badge svg {
+    position: absolute;
+    top: 50%; left: 50%;
+    width: calc(var(--u) * 21px);
+    height: calc(var(--u) * 21px);
+    margin: calc(var(--u)* -10.5px) 0 0 calc(var(--u)* -10.5px);
+    display: block;
+    color: var(--c);
+  }
+
+  .meta { margin-top: calc(var(--u) * 7px); }
+  .meta b {
+    display: block;
+    font-size: calc(var(--u) * 11px);
+    line-height: calc(var(--u) * 13px);
+    letter-spacing: calc(var(--u) * 1.4px);
+    font-weight: bold;
+    color: #eaf1ff;
+    text-shadow: 0 calc(var(--u)*1px) calc(var(--u)*4px) rgba(0,0,0,.8);
+  }
+  .meta b i {
+    display: inline-block;
+    width: calc(var(--u)*5px);
+    height: calc(var(--u)*5px);
+    border-radius: 50%;
+    background: var(--c);
+    margin-right: calc(var(--u)*4px);
+    vertical-align: middle;
+    box-shadow: 0 0 calc(var(--u)*8px) var(--c);
+  }
+  .meta span {
+    display: block;
+    margin-top: calc(var(--u)*2px);
+    font-size: calc(var(--u)*9.5px);
+    line-height: calc(var(--u)*12px);
+    color: rgba(190,205,230,0.78);
+    text-shadow: 0 calc(var(--u)*1px) calc(var(--u)*4px) rgba(0,0,0,.75);
+  }
+  .hud.compact .meta span { display: none; }
+
+  /* ===== MODERN COMPACT RECTANGULAR HUD ===== */
+  .hud.pos-bc {
+    left: 50%;
+    bottom: calc(var(--u) * 18px);
+    right: auto;
+    top: auto;
+    -webkit-transform: translateX(-50%);
+    transform: translateX(-50%);
+  }
+  .hud.pos-bc .row {
+    max-width: none;
+    -webkit-flex-wrap: nowrap;
+    flex-wrap: nowrap;
+    -webkit-justify-content: center;
+    justify-content: center;
+    /* Tidak memakai flex `gap` (tidak didukung CEF lama).
+       Jarak antar kotak dibuat lewat margin pada .stat di bawah. */
+  }
+  .hud.pos-bc.narrow .row { max-width: none; }
+
+  /* ----- KOTAK STAT â€” DIMENSI EKSPLISIT & ZONA TERPISAH ----- */
+  .hud .stat {
+    position: relative;                                /* jangkar .meta */
+    width: calc(var(--u) * 108px);                     /* sedikit lebih lebar */
+    height: calc(var(--u) * 50px);                     /* TINGGI EKSPLISIT */
+    margin: 0 calc(var(--u) * 3px);                    /* jarak antar kotak = 6px */
+    padding: 0;
+    text-align: left;
+    -webkit-flex: 0 0 auto;
+    flex: 0 0 auto;
+    -webkit-box-sizing: border-box;
+    box-sizing: border-box;
+  }
+
+  .hud .dial {
+    width: 100%;
+    height: 100%;
+    border-radius: calc(var(--u) * 9px);
+    overflow: hidden;
+    background: linear-gradient(145deg, rgba(17,25,42,.94), rgba(5,10,20,.91));
+    border: calc(var(--u) * 1px) solid rgba(255,255,255,.16);
+    box-shadow: 0 calc(var(--u)*5px) calc(var(--u)*16px) rgba(0,0,0,.48),
+                inset 0 calc(var(--u)*1px) 0 rgba(255,255,255,.09);
+    -webkit-transition: border-color .2s ease, box-shadow .2s ease;
+    transition: border-color .2s ease, box-shadow .2s ease;
+  }
+  .hud .dial .ring {
+    display: block;
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+    opacity: .92;
+  }
+  .hud .dial .shine,
+  .hud .dial .halo { display: none; }
+  .hud .dial:before {
+    content: "";
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: linear-gradient(110deg, rgba(255,255,255,.10), transparent 45%, rgba(0,0,0,.12));
+    z-index: 1;
+    pointer-events: none;
+  }
+
+  /* Badge: kiri, vertikal tengah, tidak pernah bertemu value/label */
+  .hud .badge {
+    top: 50%;
+    left: calc(var(--u) * 6px);
+    width: calc(var(--u) * 28px);
+    height: calc(var(--u) * 28px);
+    margin: calc(var(--u) * -14px) 0 0 0;
+    border-radius: calc(var(--u) * 7px);
+    background: rgba(255,255,255,.07);
+    border: calc(var(--u) * 1px) solid var(--c-edge);
+    box-shadow: 0 0 calc(var(--u)*9px) rgba(0,0,0,.2);
+  }
+  .hud .badge svg {
+    width: calc(var(--u) * 16px);
+    height: calc(var(--u) * 16px);
+    margin: calc(var(--u) * -8px) 0 0 calc(var(--u) * -8px);
+  }
+
+  /* Value: kanan atas, dibatasi max-width supaya tidak menyentuh badge/label */
+  .hud .value {
+    top: calc(var(--u) * 4px);
+    left: auto;
+    right: calc(var(--u) * 7px);
+    width: auto;
+    max-width: calc(var(--u) * 62px);
+    height: calc(var(--u) * 18px);
+    margin: 0;
+    line-height: calc(var(--u) * 18px);
+    font-size: calc(var(--u) * 16px);
+    letter-spacing: 0;
+    text-align: right;
+    overflow: hidden;
+    white-space: nowrap;
+    font-family: "Bahnschrift SemiBold", "Segoe UI", "Trebuchet MS", sans-serif;
+    font-weight: 800;
+    text-shadow: 0 calc(var(--u)*1px) calc(var(--u)*5px) rgba(0,0,0,.9);
+    z-index: 2;
+  }
+  .hud .value small { font-size: .55em; margin-left: 0; }
+
+  /* Label: kiri bawah, mulai SETELAH badge, tidak pernah menyentuh value */
+  .hud .meta {
+    position: absolute;
+    left: calc(var(--u) * 40px);
+    right: calc(var(--u) * 6px);
+    bottom: calc(var(--u) * 4px);
+    margin: 0;
+    line-height: 1;
+    pointer-events: none;
+    overflow: hidden;
+    z-index: 3;
+  }
+  .hud .meta b {
+    display: block;
+    font-size: calc(var(--u) * 8px);
+    line-height: calc(var(--u) * 10px);
+    letter-spacing: calc(var(--u) * .7px);
+    color: rgba(235,243,255,.92);
+    font-family: "Segoe UI", "Trebuchet MS", sans-serif;
+    font-weight: 800;
+    text-shadow: 0 calc(var(--u)*1px) calc(var(--u)*4px) rgba(0,0,0,.95);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .hud .meta b i { display: none; }
+  .hud .meta span { display: none; }
+
+  .hud .stat.is-critical .dial {
+    border-color: rgba(255,90,90,.85);
+    box-shadow: 0 0 calc(var(--u)*13px) rgba(255,65,65,.28),
+                inset 0 calc(var(--u)*1px) 0 rgba(255,255,255,.1);
+    -webkit-animation: critPulse 1.6s ease-in-out infinite;
+    animation: critPulse 1.6s ease-in-out infinite;
+  }
+  .hud .stat.is-critical .badge {
+    border-color: rgba(255,90,90,.8);
+    box-shadow: 0 0 calc(var(--u)*9px) rgba(255,65,65,.45);
+  }
+
+  /* Layar sangat sempit: perkecil sedikit agar 4 kotak tetap muat */
+  @media (max-width: 420px) {
+    .hud .stat { width: calc(var(--u) * 96px); height: calc(var(--u) * 46px); margin: 0 calc(var(--u)*2px); }
+    .hud .badge { width: calc(var(--u)*24px); height: calc(var(--u)*24px); margin-top: calc(var(--u)*-12px); left: calc(var(--u)*5px); }
+    .hud .badge svg { width: calc(var(--u)*13px); height: calc(var(--u)*13px); margin: calc(var(--u)*-6.5px) 0 0 calc(var(--u)*-6.5px); }
+    .hud .meta { left: calc(var(--u)*34px); }
+    .hud .meta b { font-size: calc(var(--u)*7px); line-height: calc(var(--u)*9px); letter-spacing: calc(var(--u)*.4px); }
+    .hud .value { font-size: calc(var(--u)*14px); max-width: calc(var(--u)*54px); }
+  }
+  /* HBE mobile sizing: compact width that remains readable on phone screens. */
+  @media (max-width: 600px) {
+    .hud.pos-bc { bottom: calc(var(--u) * 10px); }
+    .hud.pos-bc .row { max-width: 100vw; }
+    .hud .stat { width: calc(var(--u) * 96px); height: calc(var(--u) * 42px); margin: 0 calc(var(--u) * 1px); }
+    .hud .badge { width: calc(var(--u) * 23px); height: calc(var(--u) * 23px); margin-top: calc(var(--u) * -11.5px); left: calc(var(--u) * 5px); }
+    .hud .badge svg { width: calc(var(--u) * 12px); height: calc(var(--u) * 12px); margin: calc(var(--u) * -6px) 0 0 calc(var(--u) * -6px); }
+    .hud .meta { left: calc(var(--u) * 32px); right: calc(var(--u) * 4px); bottom: calc(var(--u) * 3px); }
+    .hud .meta b { font-size: calc(var(--u) * 7px); line-height: calc(var(--u) * 8px); letter-spacing: calc(var(--u) * .35px); }
+    .hud .value { top: calc(var(--u) * 3px); right: calc(var(--u) * 5px); font-size: calc(var(--u) * 13px); max-width: calc(var(--u) * 52px); height: calc(var(--u) * 16px); line-height: calc(var(--u) * 16px); }
+  }
+  /* HBE mobile sizing: compact width that remains readable on phone screens. */
+  @media (max-width: 600px) {
+    .hud.pos-bc { bottom: calc(var(--u) * 10px); }
+    .hud.pos-bc .row { max-width: 100vw; }
+    .hud .stat { width: calc(var(--u) * 96px); height: calc(var(--u) * 42px); margin: 0 calc(var(--u) * 1px); }
+    .hud .badge { width: calc(var(--u) * 23px); height: calc(var(--u) * 23px); margin-top: calc(var(--u) * -11.5px); left: calc(var(--u) * 5px); }
+    .hud .badge svg { width: calc(var(--u) * 12px); height: calc(var(--u) * 12px); margin: calc(var(--u) * -6px) 0 0 calc(var(--u) * -6px); }
+    .hud .meta { left: calc(var(--u) * 32px); right: calc(var(--u) * 4px); bottom: calc(var(--u) * 3px); }
+    .hud .meta b { font-size: calc(var(--u) * 7px); line-height: calc(var(--u) * 8px); letter-spacing: calc(var(--u) * .35px); }
+    .hud .value { top: calc(var(--u) * 3px); right: calc(var(--u) * 5px); font-size: calc(var(--u) * 13px); max-width: calc(var(--u) * 52px); height: calc(var(--u) * 16px); line-height: calc(var(--u) * 16px); }
+  }</style>
+</head>
+<body>
+
+<div id="hud" class="hud pos-bc">
+  <div class="row" id="row"></div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var CONFIG = [
+    { key: "makan",  label: "MAKAN",  desc: "Tingkat kelaparan",  color: "#f59e0b", icon: "burger", value: 76, danger: "low",  limit: 25 },
+    { key: "minum",  label: "MINUM",  desc: "Tingkat haus",       color: "#22d3ee", icon: "drop",   value: 58, danger: "low",  limit: 25 },
+    { key: "stress", label: "STRESS", desc: "Stres karakter",     color: "#a78bfa", icon: "bolt",   value: 34, danger: "high", limit: 75 },
+    { key: "armor",  label: "ARMOR",  desc: "Pelindung karakter", color: "#34d399", icon: "shield", value: 88, danger: "none", limit: 0 }
+  ];
+
+  var ICONS = {
+    burger: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' +
+      '<path d="M3.6 10.9a8.4 8.4 0 0 1 16.8 0z"/>' +
+      '<path d="M3.4 13.6h17.2"/>' +
+      '<path d="M4.9 13.6v3.1a1.7 1.7 0 0 0 1.7 1.7h8.8a1.7 1.7 0 0 0 1.7-1.7v-3.1"/>' +
+      '<path d="M8.5 7.3h.01M12 6.5h.01M15.5 7.3h.01"/></svg>',
+    drop: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' +
+      '<path d="M12 3.4c3.3 3.7 5.4 6.7 5.4 9.4a5.4 5.4 0 0 1-10.8 0c0-2.7 2.1-5.7 5.4-9.4z"/>' +
+      '<path d="M9.5 13.1a2.5 2.5 0 0 0 2.5 2.5"/></svg>',
+    bolt: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' +
+      '<path d="M13.4 3.6 6.9 13.1h3.9l-.9 7.3 6.6-9.9h-4z"/></svg>',
+    shield: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' +
+      '<path d="M12 3.5 19 6.1v5.6c0 4-2.8 7.1-7 8.4-4.2-1.3-7-4.4-7-8.4V6.1z"/>' +
+      '<path d="M9.4 12.1 11.3 14l3.4-3.6"/></svg>'
+  };
+
+  function hexToRgba(hex, a) {
+    var h = String(hex).replace("#", "");
+    if (h.length === 3) h = h[0]+h[0]+h[1]+h[1]+h[2]+h[2];
+    var n = parseInt(h, 16);
+    return "rgba(" + ((n>>16)&255) + "," + ((n>>8)&255) + "," + (n&255) + "," + a + ")";
+  }
+
+  /* viewBox tinggi 50, water level 0% di bawah, 100% di atas.
+     -0.54 (bukan -0.5) agar v=0 benar-benar kosong (tidak tersisa air di dasar). */
+  function levelToY(v) { return 54 - 0.54 * v; }
+
+  /* path ombak: puncak di -amp, periode 50, diulang sampai x=200 */
+  function wavePath(amp) {
+    var d = "M0 0 Q12.5 " + (-amp) + " 25 0";
+    for (var x = 50; x <= 200; x += 25) d += " T" + x + " 0";
+    return d + " L200 60 L0 60 Z";
+  }
+
+  function clamp01(v) {
+    v = parseFloat(v);
+    if (isNaN(v)) return null;
+    if (v < 0) v = 0;
+    if (v > 100) v = 100;
+    return v;
+  }
+
+  var ALIAS = {
+    hunger:"makan", food:"makan", eat:"makan", lapar:"makan",
+    thirst:"minum", water:"minum", drink:"minum", haus:"minum",
+    stress:"stress", stresslevel:"stress", stres:"stress",
+    armor:"armor", armour:"armor", shield:"armor"
+  };
+
+  var hud = document.getElementById("hud");
+  var row = document.getElementById("row");
+  var items = {};
+  var order = [];
+
+  CONFIG.forEach(function (cfg) {
+    var y = levelToY(cfg.value);
+
+    var stat = document.createElement("div");
+    stat.className = "stat";
+    stat.style.setProperty("--c", cfg.color);
+    stat.style.setProperty("--c-edge", hexToRgba(cfg.color, 0.5));
+
+    /* viewBox 108x50 SAMA DENGAN aspect ratio .dial (108:50). preserveAspectRatio="none"
+       agar SVG ikut stretch saat ukuran sedikit berubah (mis. media query). */
+    stat.innerHTML =
+      '<div class="dial">' +
+        '<div class="halo"></div>' +
+        '<svg class="ring" viewBox="0 0 108 50" preserveAspectRatio="none">' +
+          '<defs>' +
+            '<clipPath id="clip-' + cfg.key + '"><rect x="0" y="0" width="108" height="50" rx="9" ry="9"/></clipPath>' +
+            '<linearGradient id="liq-' + cfg.key + '" x1="0" y1="0" x2="0" y2="1">' +
+              '<stop offset="0%" stop-color="' + cfg.color + '" stop-opacity="0.95"/>' +
+              '<stop offset="100%" stop-color="' + cfg.color + '" stop-opacity="0.55"/>' +
+            '</linearGradient>' +
+          '</defs>' +
+          '<g clip-path="url(#clip-' + cfg.key + ')">' +
+            '<g class="liquid" transform="translate(0 ' + y + ')">' +
+              '<path d="' + wavePath(3) + '" fill="url(#liq-' + cfg.key + ')" opacity="0.45">' +
+                '<animateTransform attributeName="transform" type="translate" ' +
+                  'from="0 0" to="-50 0" dur="9s" repeatCount="indefinite"/>' +
+              '</path>' +
+              '<path d="' + wavePath(4) + '" fill="url(#liq-' + cfg.key + ')">' +
+                '<animateTransform attributeName="transform" type="translate" ' +
+                  'from="0 0" to="-50 0" dur="5.5s" repeatCount="indefinite"/>' +
+              '</path>' +
+            '</g>' +
+          '</g>' +
+          '<rect x="1" y="1" width="106" height="48" rx="9" ry="9" fill="none" stroke="rgba(255,255,255,0.17)" stroke-width="1.2"/>' +
+          '<rect x="0.5" y="0.5" width="107" height="49" rx="9" ry="9" fill="none" stroke="' + hexToRgba(cfg.color, 0.38) + '" stroke-width="0.8"/>' +
+        '</svg>' +
+        '<div class="shine"></div>' +
+        '<div class="value"><span class="num">' + cfg.value + '</span><small>%</small></div>' +
+        '<div class="badge">' + ICONS[cfg.icon] + '</div>' +
+      '</div>' +
+      '<div class="meta">' +
+        '<b><i></i>' + cfg.label + '</b>' +
+        '<span>' + cfg.desc + '</span>' +
+      '</div>';
+
+    row.appendChild(stat);
+
+    items[cfg.key] = {
+      cur: cfg.value,
+      target: cfg.value,
+      shown: -1,
+      crit: false,
+      danger: cfg.danger,
+      limit: cfg.limit,
+      el: stat,
+      liquid: stat.querySelector("g.liquid"),
+      num: stat.getElementsByClassName("num")[0]
+    };
+    order.push(cfg.key);
+  });
+
+  var last = 0;
+  function frame(now) {
+    if (!last) last = now;
+    var dt = Math.min(0.05, (now - last) / 1000);
+    last = now;
+
+    for (var i = 0; i < order.length; i++) {
+      var s = items[order[i]];
+      s.cur += (s.target - s.cur) * (1 - Math.exp(-dt * 6.5));
+      if (Math.abs(s.target - s.cur) < 0.3) s.cur = s.target;
+
+      s.liquid.setAttribute("transform", "translate(0 " + levelToY(s.cur).toFixed(2) + ")");
+
+      var r = Math.round(s.cur);
+      if (r !== s.shown) {
+        s.shown = r;
+        s.num.innerHTML = r;
+      }
+
+      if (s.danger !== "none") {
+        var crit;
+        if (s.danger === "low") {
+          crit = s.crit ? (s.cur < s.limit + 5) : (s.cur <= s.limit);
+        } else {
+          crit = s.crit ? (s.cur > s.limit - 5) : (s.cur >= s.limit);
+        }
+        if (crit !== s.crit) {
+          s.crit = crit;
+          if (crit) s.el.className += " is-critical";
+          else s.el.className = s.el.className.replace(/\s*is-critical/g, "");
+        }
+      }
+    }
+    window.requestAnimationFrame(frame);
+  }
+  window.requestAnimationFrame(frame);
+
+  function layout() {
+    var w = window.innerWidth || document.documentElement.clientWidth || 1024;
+    var h = window.innerHeight || document.documentElement.clientHeight || 768;
+
+    var u = Math.min(w / 1280, h / 720);
+    var uMin = w / 600;
+    if (u < uMin) u = uMin;
+    if (u < 0.45) u = 0.45;
+    if (u > 2.4) u = 2.4;
+
+    document.documentElement.style.setProperty("--u", u.toFixed(3));
+  }
+  layout();
+  window.addEventListener("resize", layout, false);
+  window.addEventListener("orientationchange", layout, false);
+
+  var HUD = {
+    set: function (key, value) {
+      var k = String(key).toLowerCase();
+      if (ALIAS[k]) k = ALIAS[k];
+      if (!items[k]) return false;
+      var v = clamp01(value);
+      if (v === null) return false;
+      items[k].target = v;
+      return true;
+    },
+    update: function (data) {
+      if (!data) return false;
+      if (typeof data === "string") {
+        var parsed = null;
+        try { parsed = JSON.parse(data); } catch (e) { parsed = null; }
+        if (!parsed) {
+          parsed = {};
+          var parts = data.split(/[;,]/);
+          for (var i = 0; i < parts.length; i++) {
+            var p = parts[i].split(/[:=]/);
+            if (p.length >= 2) parsed[String(p[0]).replace(/["'\s{}]/g, "")] = p[1];
+          }
+        }
+        data = parsed;
+      }
+      var ok = false;
+      for (var k in data) {
+        if (Object.prototype.hasOwnProperty.call(data, k)) {
+          if (HUD.set(k, data[k])) ok = true;
+        }
+      }
+      return ok;
+    },
+    show: function (v) {
+      if (v === false) hud.className += " is-hidden";
+      else hud.className = hud.className.replace(/\s*is-hidden/g, "");
+    },
+    position: function (pos) {
+      var map = { "bottom-left":"pos-bl", "bottom-right":"pos-br", "bottom-center":"pos-bc", "top-left":"pos-tl", "top-right":"pos-tr" };
+      if (!map[pos]) return false;
+      hud.className = hud.className.replace(/pos-(bl|br|bc|tl|tr)/g, "").replace(/\s+/g, " ");
+      hud.className += " " + map[pos];
+      return true;
+    },
+    compact: function (v) {
+      if (v === false) hud.className = hud.className.replace(/\s*compact/g, "");
+      else hud.className += " compact";
+    },
+    demo: function (v) { if (v === false) { stopDemo(); return; } startDemo(); },
+    warning: function (mode) {
+      var m = String(mode || "").toLowerCase();
+      hud.className = hud.className.replace(/\s*mode-[a-z]+/g, "");
+      if (m === "tenang" || m === "calm" || m === "halus") { hud.className += " mode-tenang"; return "tenang"; }
+      if (m === "statis" || m === "static" || m === "mati") { hud.className += " mode-statis"; return "statis"; }
+      return "blink";
+    }
+  };
+
+  window.HUD = HUD;
+  window.hud = HUD;
+  window.updateHUD = function (data) { return HUD.update(data); };
+
+  var demoTimer = null;
+  function startDemo() {
+    document.body.className = "demo";
+    if (demoTimer) return;
+    demoTimer = setInterval(function () {
+      for (var i = 0; i < order.length; i++) {
+        var s = items[order[i]];
+        var drift = (Math.random() * 2 - 1) * 7;
+        s.target = Math.min(99, Math.max(6, s.target + drift));
+      }
+    }, 2200);
+  }
+  function stopDemo() {
+    document.body.className = "";
+    if (demoTimer) { clearInterval(demoTimer); demoTimer = null; }
+  }
+
+  if (String(window.location.search).indexOf("demo=1") !== -1) startDemo();
+
+  var wm = String(window.location.search).match(/[?&](?:warning|mode)=([a-z]+)/i);
+  if (wm) HUD.warning(wm[1]);
+
+  if (String(window.location.search).indexOf("crit=1") !== -1) {
+    HUD.set("makan", 12);
+    HUD.set("minum", 15);
+    HUD.set("stress", 90);
+    HUD.set("armor", 45);
+  }
+
+  function handleEvent(a, b) {
+    var payload = (b !== undefined) ? b : a;
+    if (payload && typeof payload === "object" && payload.data !== undefined) payload = payload.data;
+    if (HUD.update(payload)) stopDemo();
+  }
+
+  function listen(name) {
+    var cef = window.cef;
+    try {
+      if (cef && typeof cef.on === "function") cef.on(name, handleEvent);
+      if (cef && typeof cef.onEvent === "function") cef.onEvent(name, handleEvent);
+      if (cef && typeof cef.onCustomEvent === "function") cef.onCustomEvent(name, handleEvent);
+      if (typeof window.cefRegisterEvent === "function") window.cefRegisterEvent(name, handleEvent);
+    } catch (e) {}
+
+    document.addEventListener(name, function (ev) {
+      try { handleEvent(ev.detail); } catch (e) {}
+    }, false);
+  }
+
+  ["hud", "status", "hud:update", "hudUpdate", "setStats", "stats"].forEach(listen);
+})();
+</script>
+</body>
+</html>
+
