@@ -3,15 +3,15 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Status HUD â€” CEF</title>
+<title>Status HUD Ã¢â‚¬â€ CEF</title>
 <!--
-  HUD STATUS KARAKTER â€” CEF (GTA SA-MP)
+  HUD STATUS KARAKTER Ã¢â‚¬â€ CEF (GTA SA-MP)
   Perbaikan tata letak:
-    â€¢ margin antar .stat (bukan flex `gap`) â†’ kompatibel CEF lama
-    â€¢ .stat & .dial diberi tinggi eksplisit agar tidak saling timpa
-    â€¢ zona badge / value / label dipisah, label tidak mungkin menabrak value
-    â€¢ SVG air memakai viewBox 108x50 (mengisi penuh kotak) + preserveAspectRatio="none"
-    â€¢ label & value diberi overflow:hidden + ellipsis sebagai pengaman
+    Ã¢â‚¬Â¢ margin antar .stat (bukan flex `gap`) Ã¢â€ â€™ kompatibel CEF lama
+    Ã¢â‚¬Â¢ .stat & .dial diberi tinggi eksplisit agar tidak saling timpa
+    Ã¢â‚¬Â¢ zona badge / value / label dipisah, label tidak mungkin menabrak value
+    Ã¢â‚¬Â¢ SVG air memakai viewBox 108x50 (mengisi penuh kotak) + preserveAspectRatio="none"
+    Ã¢â‚¬Â¢ label & value diberi overflow:hidden + ellipsis sebagai pengaman
 -->
 <style>
   :root { --u: 1; }
@@ -21,7 +21,7 @@
     margin: 0; padding: 0;
     overflow: hidden;
     background: transparent;
-    pointer-events: auto;
+    pointer-events: none;
     cursor: default;
     -webkit-user-select: none; -moz-user-select: none;
     -ms-user-select: none; user-select: none;
@@ -34,7 +34,7 @@
   }
 
   /* ---------- posisi HUD ---------- */
-  .hud { position: fixed; z-index: 10; pointer-events: auto; }
+  .hud { position: fixed; z-index: 10; pointer-events: none; }
   .hud.pos-bl { left: calc(var(--u) * 24px);  bottom: calc(var(--u) * 22px); }
   .hud.pos-br { right: calc(var(--u) * 24px); bottom: calc(var(--u) * 22px); }
   .hud.pos-tl { left: calc(var(--u) * 24px);  top: calc(var(--u) * 22px); }
@@ -276,7 +276,7 @@
   }
   .hud.pos-bc.narrow .row { max-width: none; }
 
-  /* ----- KOTAK STAT â€” DIMENSI EKSPLISIT & ZONA TERPISAH ----- */
+  /* ----- KOTAK STAT Ã¢â‚¬â€ DIMENSI EKSPLISIT & ZONA TERPISAH ----- */
   .hud .stat {
     position: relative;                                /* jangkar .meta */
     width: calc(var(--u) * 108px);                     /* sedikit lebih lebar */
@@ -434,15 +434,15 @@
     .hud .value { top: calc(var(--u) * 3px); right: calc(var(--u) * 5px); font-size: calc(var(--u) * 13px); max-width: calc(var(--u) * 52px); height: calc(var(--u) * 16px); line-height: calc(var(--u) * 16px); }
   }  /* Final compact scale for CEF. The HUD remains clickable after scaling. */
   .hud.pos-bc {
-    -webkit-transform: translateX(-50%) scale(.62);
-    transform: translateX(-50%) scale(.62);
+    -webkit-transform: translateX(-50%) scale(.42);
+    transform: translateX(-50%) scale(.42);
     -webkit-transform-origin: center bottom;
     transform-origin: center bottom;
   }
   @media (max-width: 600px) {
     .hud.pos-bc {
-      -webkit-transform: translateX(-50%) scale(.52);
-      transform: translateX(-50%) scale(.52);
+      -webkit-transform: translateX(-50%) scale(.36);
+      transform: translateX(-50%) scale(.36);
     }
   }</style>
 </head>
