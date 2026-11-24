@@ -929,6 +929,14 @@
   }
 
   ["hud", "status", "hud:update", "hudUpdate", "setStats", "stats"].forEach(listen);
+
+  if (window.cef && typeof window.cef.on === "function") {
+    window.cef.on("toggleHUD", function (visible) {
+      var isVisible = visible === true || visible === 1 || visible === "1" ||
+        String(visible).toLowerCase() === "true";
+      HUD.show(isVisible);
+    });
+  }
 })();
 </script>
 </body>
