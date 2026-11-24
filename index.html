@@ -5,13 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Status HUD Ã¢â‚¬â€ CEF</title>
 <!--
-  HUD STATUS KARAKTER Ã¢â‚¬â€ CEF (GTA SA-MP)
-  Perbaikan tata letak:
-    Ã¢â‚¬Â¢ margin antar .stat (bukan flex `gap`) Ã¢â€ â€™ kompatibel CEF lama
-    Ã¢â‚¬Â¢ .stat & .dial diberi tinggi eksplisit agar tidak saling timpa
-    Ã¢â‚¬Â¢ zona badge / value / label dipisah, label tidak mungkin menabrak value
-    Ã¢â‚¬Â¢ SVG air memakai viewBox 108x50 (mengisi penuh kotak) + preserveAspectRatio="none"
-    Ã¢â‚¬Â¢ label & value diberi overflow:hidden + ellipsis sebagai pengaman
 -->
 <style>
   :root { --u: 1; }
@@ -444,12 +437,205 @@
       -webkit-transform: translateX(-50%) scale(.36);
       transform: translateX(-50%) scale(.36);
     }
-  }</style>
+  }
+
+  /* ===== UNIFIED macOS HUD: BLACK / RED / WHITE ===== */
+  .hud-window {
+    display: inline-block;
+    padding: 0;
+    overflow: hidden;
+    border-radius: 12px;
+    background: linear-gradient(145deg, rgba(17,17,20,.98), rgba(3,3,5,.98));
+    border: 1px solid rgba(255,255,255,.22);
+    box-shadow: 0 12px 30px rgba(0,0,0,.72),
+                0 0 18px rgba(225,29,72,.16),
+                inset 0 1px 0 rgba(255,255,255,.12);
+  }
+  .mac-header {
+    height: 28px;
+    padding: 0 10px;
+    display: -webkit-flex;
+    display: flex;
+    -webkit-align-items: center;
+    align-items: center;
+    position: relative;
+    background: linear-gradient(180deg, #202024 0%, #101013 100%);
+    border-bottom: 1px solid rgba(225,29,72,.72);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.10);
+  }
+  .mac-dots { display:flex; align-items:center; width:42px; flex:0 0 42px; }
+  .mac-dots i {
+    display:block; width:8px; height:8px; border-radius:50%; margin-right:5px;
+    box-shadow: inset 0 1px 1px rgba(255,255,255,.35), 0 0 4px rgba(0,0,0,.55);
+  }
+  .mac-dots i:nth-child(1) { background:#ff5f57; }
+  .mac-dots i:nth-child(2) { background:#febc2e; }
+  .mac-dots i:nth-child(3) { background:#28c840; }
+  .mac-title {
+    position:absolute; left:50%; transform:translateX(-50%);
+    color:rgba(255,255,255,.88); font-size:8px; font-weight:800;
+    letter-spacing:1.25px; white-space:nowrap;
+  }
+  .mac-live { margin-left:auto; color:#fff; font-size:7px; font-weight:800; letter-spacing:.8px; }
+  .mac-live i { display:inline-block; width:5px; height:5px; border-radius:50%; margin-right:4px; background:#E11D48; box-shadow:0 0 6px #E11D48; vertical-align:1px; }
+  .hud-window .row {
+    display:-webkit-flex; display:flex; flex-wrap:nowrap;
+    max-width:none; margin:0; padding:0;
+    background:linear-gradient(180deg, rgba(18,18,22,.98), rgba(5,5,7,.98));
+  }
+  .hud-window .stat {
+    margin:0; border-right:1px solid rgba(255,255,255,.12);
+    background:transparent;
+  }
+  .hud-window .stat:last-child { border-right:0; }
+  .hud-window .dial {
+    border:0; border-radius:0; box-shadow:none;
+    background:linear-gradient(180deg, rgba(255,255,255,.035), rgba(0,0,0,.08));
+  }
+  .hud-window .dial:before { background:linear-gradient(110deg, rgba(255,255,255,.055), transparent 48%, rgba(0,0,0,.15)); }
+  .hud-window .dial .ring { opacity:.78; }
+  .hud-window .badge {
+    background:rgba(225,29,72,.13);
+    border-color:rgba(225,29,72,.58);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.12), 0 0 8px rgba(225,29,72,.16);
+  }
+  .hud-window .value { color:#fff; }
+  .hud-window .meta b { color:rgba(255,255,255,.96); }
+  .hud-window .meta b i { display:inline-block; background:#E11D48; box-shadow:0 0 6px rgba(225,29,72,.75); }
+  .hud-window .stat.is-critical .dial { box-shadow:inset 0 0 0 1px rgba(225,29,72,.55); }
+  @media (max-width:600px) {
+    .mac-header { height:26px; padding:0 8px; }
+    .mac-title { font-size:7px; letter-spacing:1px; }
+  }
+
+  /* ===== POLISHED LAYOUT V2 ===== */
+  .hud-window {
+    border-radius: 13px;
+    border: 1px solid rgba(255,255,255,.18);
+    background: #080809;
+    box-shadow: 0 10px 26px rgba(0,0,0,.62),
+                0 0 0 1px rgba(225,29,72,.10),
+                0 5px 18px rgba(225,29,72,.10);
+  }
+  .mac-header {
+    height: 30px;
+    padding: 0 11px;
+    background: linear-gradient(180deg, #242428 0%, #151518 100%);
+    border-bottom: 1px solid rgba(225,29,72,.55);
+  }
+  .mac-dots { width: 48px; flex-basis: 48px; }
+  .mac-dots i { width: 8px; height: 8px; margin-right: 5px; }
+  .mac-title { font-size: 8px; letter-spacing: 1.35px; color: #f5f5f6; }
+  .mac-live { font-size: 7px; letter-spacing: 1px; color: rgba(255,255,255,.72); }
+  .mac-live i { background:#e11d48; box-shadow:0 0 7px rgba(225,29,72,.9); }
+  .hud-window .row {
+    align-items: stretch;
+    background: linear-gradient(180deg, #111114 0%, #080809 100%);
+  }
+  .hud-window .stat {
+    width: calc(var(--u) * 112px);
+    height: calc(var(--u) * 54px);
+    flex: 0 0 calc(var(--u) * 112px);
+    border-right: 1px solid rgba(255,255,255,.10);
+    background: linear-gradient(180deg, rgba(255,255,255,.025), transparent 65%);
+  }
+  .hud-window .stat:last-child { border-right: 0; }
+  .hud-window .dial {
+    width: 100%; height: 100%;
+    border-radius: 0;
+    background: linear-gradient(135deg, rgba(255,255,255,.035), rgba(255,255,255,0) 55%), #0c0c0f;
+  }
+  .hud-window .dial:before {
+    background: linear-gradient(90deg, rgba(225,29,72,.07), transparent 48%);
+  }
+  .hud-window .dial .ring { opacity: .46; }
+  .hud-window .dial .ring .liquid path { opacity: .23; }
+  .hud-window .badge {
+    left: calc(var(--u) * 10px);
+    width: calc(var(--u) * 27px);
+    height: calc(var(--u) * 27px);
+    margin-top: calc(var(--u) * -13.5px);
+    border-radius: 8px;
+    background: linear-gradient(145deg, rgba(225,29,72,.20), rgba(225,29,72,.06));
+    border: 1px solid rgba(225,29,72,.48);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.10), 0 3px 9px rgba(0,0,0,.28);
+  }
+  .hud-window .badge svg {
+    width: calc(var(--u) * 15px);
+    height: calc(var(--u) * 15px);
+    margin: calc(var(--u) * -7.5px) 0 0 calc(var(--u) * -7.5px);
+    color: #fff;
+  }
+  .hud-window .value {
+    top: calc(var(--u) * 6px);
+    right: calc(var(--u) * 9px);
+    max-width: calc(var(--u) * 58px);
+    height: calc(var(--u) * 20px);
+    line-height: calc(var(--u) * 20px);
+    font-size: calc(var(--u) * 17px);
+    color: #fff;
+    letter-spacing: -.35px;
+    text-shadow: 0 1px 8px rgba(0,0,0,.85);
+  }
+  .hud-window .value small { color:#ff315b; font-size:.52em; }
+  .hud-window .meta {
+    left: calc(var(--u) * 45px);
+    right: calc(var(--u) * 6px);
+    bottom: calc(var(--u) * 7px);
+  }
+  .hud-window .meta b {
+    font-size: calc(var(--u) * 8px);
+    line-height: calc(var(--u) * 10px);
+    letter-spacing: calc(var(--u) * .9px);
+    color: rgba(255,255,255,.88);
+  }
+  .hud-window .meta b i { display:none; }
+  .hud-window .stat.is-critical .dial {
+    box-shadow: inset 0 -2px 0 rgba(225,29,72,.95), inset 0 0 20px rgba(225,29,72,.08);
+    animation: none;
+  }
+  .hud-window .stat.is-critical .badge {
+    border-color: rgba(255,49,91,.9);
+    box-shadow: 0 0 10px rgba(225,29,72,.22);
+  }
+  .hud.pos-bc {
+    -webkit-transform: translateX(-50%) scale(.52);
+    transform: translateX(-50%) scale(.52);
+  }
+  @media (max-width: 600px) {
+    .mac-header { height: 28px; padding: 0 9px; }
+    .mac-title { font-size: 7px; letter-spacing: 1px; }
+    .hud-window .stat {
+      width: calc(var(--u) * 100px);
+      flex-basis: calc(var(--u) * 100px);
+      height: calc(var(--u) * 49px);
+    }
+    .hud-window .badge { left: calc(var(--u) * 7px); }
+    .hud-window .meta { left: calc(var(--u) * 39px); bottom: calc(var(--u) * 6px); }
+    .hud-window .value { right: calc(var(--u) * 7px); font-size: calc(var(--u) * 15px); }
+    .hud.pos-bc {
+      -webkit-transform: translateX(-50%) scale(.46);
+      transform: translateX(-50%) scale(.46);
+    }
+  }
+  @media (max-width: 360px) {
+    .hud-window .stat { width: calc(var(--u) * 92px); flex-basis: calc(var(--u) * 92px); }
+    .hud.pos-bc { -webkit-transform:translateX(-50%) scale(.43); transform:translateX(-50%) scale(.43); }
+  }
+
+  </style>
 </head>
 <body>
 
 <div id="hud" class="hud pos-bc">
-  <div class="row" id="row"></div>
+  <div class="hud-window">
+    <div class="mac-header">
+      <div class="mac-dots" aria-hidden="true"><i></i><i></i><i></i></div>
+      <span class="mac-title">CHARACTER STATUS</span>
+      <span class="mac-live"><i></i> LIVE</span>
+    </div>
+    <div class="row" id="row"></div>
+  </div>
 </div>
 
 <script>
@@ -457,10 +643,10 @@
   "use strict";
 
   var CONFIG = [
-    { key: "makan",  label: "MAKAN",  desc: "Tingkat kelaparan",  color: "#f59e0b", icon: "burger", value: 76, danger: "low",  limit: 25 },
-    { key: "minum",  label: "MINUM",  desc: "Tingkat haus",       color: "#22d3ee", icon: "drop",   value: 58, danger: "low",  limit: 25 },
-    { key: "stress", label: "STRESS", desc: "Stres karakter",     color: "#a78bfa", icon: "bolt",   value: 34, danger: "high", limit: 75 },
-    { key: "armor",  label: "ARMOR",  desc: "Pelindung karakter", color: "#34d399", icon: "shield", value: 88, danger: "none", limit: 0 }
+    { key: "makan",  label: "MAKAN",  desc: "Tingkat kelaparan",  color: "#E11D48", icon: "burger", value: 76, danger: "low",  limit: 25 },
+    { key: "minum",  label: "MINUM",  desc: "Tingkat haus",       color: "#FFFFFF", icon: "drop",   value: 58, danger: "low",  limit: 25 },
+    { key: "stress", label: "STRESS", desc: "Stres karakter",     color: "#E11D48", icon: "bolt",   value: 34, danger: "high", limit: 75 },
+    { key: "armor",  label: "ARMOR",  desc: "Pelindung karakter", color: "#FFFFFF", icon: "shield", value: 88, danger: "none", limit: 0 }
   ];
 
   var ICONS = {
